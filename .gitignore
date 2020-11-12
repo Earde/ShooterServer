@@ -338,3 +338,33 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+/Library
+/ProjectSettings
+/Temp
+/Build
+/GameServerHDRP.sln
+/Build.zip
+/Assembly-CSharp.csproj
+/Assembly-CSharp-Editor.csproj
+/Assets/Scenes
+/Assets/Samples/Terrain Tools/0.1.0-preview/Terrain Assets
+/Assets/Settings
+/Assets/TurboSquid
+/Assets/TutorialInfo
+/Assets/UMS_LODs
+/Assets/_Creepy_Cat/_3D Scifi Kit Starter Kit
+/Assets/_Barking_Dog
+/Assets/Real Materials
+/Assets/Presets
+/Assets/Prefabs
+/Assets/Measured Materials Library
+/Assets/Materials
+/Assets/Kevin Iglesias/Basic Motions Pack
+/Assets/HDRPDefaultResources
+/Assets/ExplosiveLLC/RPG Character Animation Pack FREE/Animations/Unarmed
+/Assets/ExampleAssets
+/Assets/Cars
+/Assets/Blood
+/Assets/Biomechanical_Mutant
+/Assets/Art/Environment
+/Assets/Readme.asset
