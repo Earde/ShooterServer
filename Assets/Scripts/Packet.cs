@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -15,6 +14,7 @@ public enum ServerPackets
     playerDisconnected,
     playerHealth,
     playerRespawn,
+    playerHitmark,
     createItemSpawner,
     itemSpawned,
     itemPickedUp,
@@ -29,6 +29,7 @@ public enum ClientPackets
     welcomeReceived = 1,
     timeSync,
     playerMovement,
+    playerChangeGun,
     playerShoot,
     playerThrowItem
 }

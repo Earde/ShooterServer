@@ -229,7 +229,7 @@ public class Player : MonoBehaviour
 
     public void ChangeGun(int gunId, float time)
     {
-        gun.SetGun(gunId, time);
+        gun.SetGun(gunId, time, syncedTime.GetTime());
     }
 
     public void Shoot(Vector3 viewDirection, float time, float enemyTime)

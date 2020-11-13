@@ -121,6 +121,7 @@ public class Server
                 { (int)ClientPackets.welcomeReceived, ServerHandle.WelcomeReceived },
                 { (int)ClientPackets.timeSync, ServerHandle.TimeSync },
                 { (int)ClientPackets.playerMovement, ServerHandle.PlayerMovement },
+                { (int)ClientPackets.playerChangeGun, ServerHandle.PlayerChangeGun },
                 { (int)ClientPackets.playerShoot, ServerHandle.PlayerShoot },
                 { (int)ClientPackets.playerThrowItem, ServerHandle.PlayerThrowItem }
             };

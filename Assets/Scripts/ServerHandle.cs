@@ -37,6 +37,13 @@ public class ServerHandle
         if (Server.clients.ContainsKey(fromClient)) Server.clients[fromClient].player?.AddInput(inputs, rotation, time);
     }
 
+    public static void PlayerChangeGun(int fromClient, Packet packet)
+    {
+        float time = packet.ReadFloat();
+        int gunId = packet.ReadInt();
+        if (Server.clients.ContainsKey(fromClient)) Server.clients[fromClient].player?.ChangeGun(gunId, time);
+    }
+
     public static void PlayerShoot(int fromClient, Packet packet)
     {
         Vector3 shootDirection = packet.ReadVector3();

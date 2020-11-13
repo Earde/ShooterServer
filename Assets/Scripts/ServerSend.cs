@@ -152,6 +152,15 @@ public class ServerSend
         }
     }
 
+    public static void PlayerHitmark(int toClient)
+    {
+        using (Packet packet = new Packet((int)ServerPackets.playerHitmark))
+        {
+            packet.Write(toClient);
+            SendUDPData(toClient, packet);
+        }
+    }
+
     public static void CreateItemSpawner(int toClient, int spawnerId, Vector3 spawnerPosition, bool hasItem)
     {
         using(Packet packet = new Packet((int)ServerPackets.createItemSpawner))

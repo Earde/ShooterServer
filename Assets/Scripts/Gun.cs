@@ -23,8 +23,8 @@ public class Gun : MonoBehaviour
             armsDamage = 18.0f,
             hipsDamage = 33.0f,
             legsDamage = 17.0f,
-            equipCooldown = 1.25f,
-            shotCooldown = 0.05f
+            equipCooldown = 1f,
+            shotCooldown = 0.8f
         },
         //AK-47
         new GunEntity {
@@ -33,8 +33,8 @@ public class Gun : MonoBehaviour
             armsDamage = 9.0f,
             hipsDamage = 17.0f,
             legsDamage = 8.0f,
-            equipCooldown = 2.5f,
-            shotCooldown = 0.05f
+            equipCooldown = 2f,
+            shotCooldown = 0.33f
         }
     };
 
@@ -42,7 +42,7 @@ public class Gun : MonoBehaviour
 
     private int activeGun = 0;
 
-    private bool IsReady()
+    private bool EquipReady()
     {
         if (equipTimer < gunModels[activeGun].equipCooldown)
         {
@@ -56,18 +56,19 @@ public class Gun : MonoBehaviour
         equipTimer += Time.deltaTime;
     }
 
-    public void SetGun(int gunId, float time)
+    public void SetGun(int gunId, float time, float serverTime)
     {
+        Debug.Log(gunId);
         if (activeGun != gunId)
         {
             activeGun = gunId;
-            equipTimer = Time.time - time;
+            equipTimer = serverTime - time;
         }
     }
 
     public void Shoot(Vector3 viewDirection, Transform shootOrigin, float time, float enemyTime, int playerId)
     {
-        if (IsReady())
+        if (EquipReady()) //TODO: Add ShootReady & AmmoReady
         {
             // Set positions back in time
             foreach (Client c in Server.clients.Values)
@@ -85,15 +86,29 @@ public class Gun : MonoBehaviour
             // Do hit collision
             Debug.DrawRay(shootOrigin.position, viewDirection.normalized * 1000f, Color.cyan, 0.5f);
             RaycastHit[] hits = Physics.RaycastAll(shootOrigin.position, viewDirection, 1000f);
+            Dictionary<int, float> playerDamage = new Dictionary<int, float>();
             for (int i = 0; i < hits.Length; i++)
             {
-                float damage = gunModels[activeGun].headDamage;
+                float damage = -1.0f;
                 if (hits[i].collider.CompareTag("Head")) damage = gunModels[activeGun].headDamage;
                 else if (hits[i].collider.CompareTag("Torso")) damage = gunModels[activeGun].torsoDamage;
                 else if (hits[i].collider.CompareTag("Hips")) damage = gunModels[activeGun].hipsDamage;
                 else if (hits[i].collider.CompareTag("Arms")) damage = gunModels[activeGun].armsDamage;
                 else if (hits[i].collider.CompareTag("Legs")) damage = gunModels[activeGun].legsDamage;
-                EnemyHit(hits[i].collider, damage, playerId);
+                if (damage > 0.0f)
+                {
+                    Player p = hits[i].collider.GetComponentInParent<Player>();
+                    if (p != null && p.id != playerId)
+                    {
+                        if (!playerDamage.ContainsKey(p.id))
+                        {
+                            playerDamage.Add(p.id, damage);
+                        } else if (damage > playerDamage[p.id])
+                        {
+                            playerDamage[p.id] = damage;
+                        }
+                    }
+                }
             }
             // Restore positions
             foreach (Client c in Server.clients.Values)
@@ -101,17 +116,21 @@ public class Gun : MonoBehaviour
                 if (c.player == null) continue;
                 c.player.SetLatestPosition();
             }
-        }
-    }
-
-    private void EnemyHit(Collider c, float damage, int playerId)
-    {
-        Player p = c.GetComponentInParent<Player>();
-        if (p.id != playerId)
-        {
-            Debug.Log($"Player {playerId} hit player {p.id} for {damage} damage.");
-            //Hitmarker
-            p.TakeDamage(damage);
+            // Handle damage and send hitmarker
+            bool hitmarker = false;
+            foreach (KeyValuePair<int, float> pd in playerDamage)
+            {
+                if (Server.clients.ContainsKey(pd.Key))
+                {
+                    Debug.Log($"Player {playerId} hit player {pd.Key} for {pd.Value} damage.");
+                    Server.clients[pd.Key].player?.TakeDamage(pd.Value);
+                    hitmarker = true;
+                }
+            }
+            if (hitmarker)
+            {
+                ServerSend.PlayerHitmark(playerId);
+            }
         }
     }
 }
