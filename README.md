@@ -1,3 +1,4 @@
-cutt.ly/PrivateVoid
+Download Client: cutt.ly/PrivateVoid
+Download Server: No public version available yet
 
-trello.com/b/kF7Bndfi/unity-fps
+Trello board: 	 trello.com/b/kF7Bndfi/unity-fps
