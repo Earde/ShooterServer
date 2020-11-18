@@ -58,7 +58,6 @@ public class Gun : MonoBehaviour
 
     public void SetGun(int gunId, float time, float serverTime)
     {
-        Debug.Log(gunId);
         if (activeGun != gunId)
         {
             activeGun = gunId;

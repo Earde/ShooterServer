@@ -103,21 +103,11 @@ public class ServerSend
         {
             packet.Write(id);
             packet.Write(state.position);
-            packet.Write(state.yVelocity);
+            packet.Write(state.rotation);
+            packet.Write(state._yVelocity);
             packet.Write(state.time);
 
             SendUDPDataToAll(packet);
-        }
-    }
-
-    public static void PlayerRotation(Player player)
-    {
-        using (Packet packet = new Packet((int)ServerPackets.playerRotation))
-        {
-            packet.Write(player.id);
-            packet.Write(player.transform.rotation);
-
-            SendUDPDataToAll(player.id, packet);
         }
     }
 

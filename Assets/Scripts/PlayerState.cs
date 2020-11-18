@@ -8,6 +8,7 @@ using UnityEngine;
 public class PlayerState
 {
     public Vector3 position { get; set; }
-    public float yVelocity { get; set; }
+    public Quaternion rotation { get; set; }
+    public float _yVelocity { get; set; }
     public float time { get; set; }
 }

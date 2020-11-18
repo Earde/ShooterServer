@@ -10,7 +10,6 @@ public enum ServerPackets
     timeSync,
     spawnPlayer,
     playerPosition,
-    playerRotation,
     playerDisconnected,
     playerHealth,
     playerRespawn,

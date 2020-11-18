@@ -7,7 +7,7 @@ public class Player : MonoBehaviour
 {
     public int id;
     public string username;
-    public CharacterController controller;
+    public CharacterController characterController;
     public Transform shootOrigin;
     public float gravity = -9.81f;
     public float moveSpeed = 5f;
@@ -58,7 +58,7 @@ public class Player : MonoBehaviour
         for (float x = saveTime; x > 0.0f; x -= Time.fixedDeltaTime)
         {
             unprocessedUserInput.Add(new UserInput { inputs = new bool[5], time = syncedTime.GetTime() - x, rotation = Quaternion.identity });
-            ticks.Add(new PlayerState { position = spawnPosition, time = syncedTime.GetTime() - x, yVelocity = yVelocity });
+            ticks.Add(new PlayerState { position = spawnPosition, rotation = Quaternion.identity, time = syncedTime.GetTime() - x, _yVelocity = yVelocity });
         }
     }
 
@@ -82,9 +82,9 @@ public class Player : MonoBehaviour
                     //Debug.Log("Reconcilating for " + id);
                     //rewind ticks till oldest unprocessedUserInput
                     ticks.RemoveAll(t => t.time > uui[0].time);
-                    controller.enabled = false;
-                    controller.transform.position = ticks.Last().position;
-                    controller.enabled = true;
+                    characterController.enabled = false;
+                    characterController.transform.position = ticks.Last().position;
+                    characterController.enabled = true;
                     List<UserInput> allInputs = processedUserInput.Concat(uui).ToList();
                     float newTickTime;
                     do
@@ -115,7 +115,7 @@ public class Player : MonoBehaviour
                                 Move(movesThisTick[i].inputs, movesThisTick[i].rotation, moveTime);
                             }
                         }
-                        ticks.Add(new PlayerState { position = transform.position, time = newTickTime, yVelocity = yVelocity });
+                        ticks.Add(new PlayerState { position = transform.position, rotation = transform.rotation, time = newTickTime, _yVelocity = yVelocity });
                     } while (newTickTime != currentTime);
                 }
                 else
@@ -136,19 +136,19 @@ public class Player : MonoBehaviour
                         }
                         Move(uui[i].inputs, uui[i].rotation, moveTime);
                     }
-                    ticks.Add(new PlayerState { position = transform.position, time = currentTime, yVelocity = yVelocity });
+                    ticks.Add(new PlayerState { position = transform.position, rotation = transform.rotation, time = currentTime, _yVelocity = yVelocity });
                 }
             } else
             {
-                Move(processedUserInput.Last().inputs, transform.rotation, currentTime - ticks.Last().time);
-                ticks.Add(new PlayerState { position = transform.position, time = currentTime, yVelocity = yVelocity });
+                Move(processedUserInput.Last().inputs, processedUserInput.Last().rotation, currentTime - ticks.Last().time);
+                ticks.Add(new PlayerState { position = transform.position, rotation = transform.rotation, time = currentTime, _yVelocity = yVelocity });
             }
         }
         else
         {
             yVelocity = 0;
             transform.position = spawnPosition;
-            ticks.Add(new PlayerState { position = transform.position, time = currentTime, yVelocity = yVelocity });
+            ticks.Add(new PlayerState { position = transform.position, rotation = transform.rotation, time = currentTime, _yVelocity = yVelocity });
         }
 
         //move from unprocessed to processed
@@ -163,11 +163,12 @@ public class Player : MonoBehaviour
         //Debug.Log($"{ticks.Count} ticks, {processedUserInput.Count} pInput");
         //send new tick to all players
         ServerSend.PlayerPosition(id, ticks.Last());
-        ServerSend.PlayerRotation(this);
     }
 
     private void Move(bool[] inputs, Quaternion rotation, float moveDuration)
     {
+        if (moveDuration <= 0.0f) return;
+
         Vector2 _inputDirection = Vector2.zero;
         if (inputs[0])
         {
@@ -185,25 +186,28 @@ public class Player : MonoBehaviour
         {
             _inputDirection.x += 1;
         }
-        transform.rotation = rotation;
-        Vector3 moveDirection = transform.right * _inputDirection.x + transform.forward * _inputDirection.y;
-        moveDirection *= moveSpeed * moveDuration;
+        if (_inputDirection.magnitude > 1.5f)
+        {
+            _inputDirection *= 0.7071f; //Keer wortel van 0.5 om _inputDirection.magnitude van 1 te krijgen
+        }
 
-        if (controller.isGrounded)
+        transform.rotation = rotation;
+        Vector3 moveDirection = (transform.right * _inputDirection.x * moveSpeed) + (transform.forward * _inputDirection.y * moveSpeed);
+
+        if (characterController.isGrounded)
         {
             yVelocity = 0;
-            if (inputs[4])
-            {
-                yVelocity = jumpSpeed;
-            }
+            if (inputs[4]) { yVelocity = jumpSpeed; }
         }
-        else
+
+        moveDirection.y = yVelocity;
+
+        if (!characterController.isGrounded)
         {
             yVelocity -= gravity * moveDuration;
         }
 
-        moveDirection.y = yVelocity * moveDuration;
-        controller.Move(moveDirection);
+        characterController.Move(moveDirection * moveDuration);
     }
 
     public void AddInput(bool[] _inputs, Quaternion _rotation, float _time)
@@ -259,7 +263,7 @@ public class Player : MonoBehaviour
         if (health <= 0f) //Died
         {
             health = 0f;
-            controller.enabled = false;
+            characterController.enabled = false;
             yVelocity = 0;
             transform.position = spawnPosition; 
             StartCoroutine(Respawn());
@@ -273,7 +277,7 @@ public class Player : MonoBehaviour
         yield return new WaitForSeconds(respawnTime);
 
         health = maxHealth;
-        controller.enabled = true;
+        characterController.enabled = true;
         ServerSend.PlayerRespawned(this);
     }
 
