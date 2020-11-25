@@ -102,10 +102,10 @@ public class ServerSend
         using (Packet packet = new Packet((int)ServerPackets.playerPosition))
         {
             packet.Write(id);
-            packet.Write(state.position);
-            packet.Write(state.rotation);
+            packet.Write(state._position);
+            packet.Write(state._rotation);
             packet.Write(state._yVelocity);
-            packet.Write(state.time);
+            packet.Write(state._time);
 
             SendUDPDataToAll(packet);
         }

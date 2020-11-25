@@ -48,9 +48,9 @@ public class ServerHandle
     {
         Vector3 shootDirection = packet.ReadVector3();
         float time = packet.ReadFloat();
-        float enemyTime = packet.ReadFloat();
+        float enemyInterpolationDelay = packet.ReadFloat();
 
-        if (Server.clients.ContainsKey(fromClient)) Server.clients[fromClient].player?.Shoot(shootDirection, time, enemyTime);
+        if (Server.clients.ContainsKey(fromClient)) Server.clients[fromClient].player?.Shoot(shootDirection, time, enemyInterpolationDelay);
     }
 
     public static void PlayerThrowItem(int fromClient, Packet packet)

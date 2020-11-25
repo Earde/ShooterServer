@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class SyncedTime
+public class SyncedTime : MonoBehaviour
 {
     class TimePacket
     {
@@ -16,13 +16,19 @@ public class SyncedTime
     public bool isReady = false;
 
     private float smoothedRTT = 0.0f;
-    private float timeDifference = 0.0f;
+    private float timeDiff = 0.0f;
+
+    private float errorRate = 0.0f;
 
     private int packetId = 0;
 
-    public float GetTime()
+    private int packetsLossed = 0;
+
+    private bool DEBUG = false;
+
+    public float GetClientTime()
     {
-        return Time.time - timeDifference;
+        return Time.time - timeDiff;
     }
 
     public void SendTimePacket(int playerId)
@@ -39,10 +45,19 @@ public class SyncedTime
         {
             float rtt = Time.time - tp.serverTime;
             smoothedRTT = smoothedRTT * 0.8f + rtt * 0.2f;
-            float curClientTime = clientTime + smoothedRTT / 2.0f;
-            timeDifference = Time.time - curClientTime;
+            float newTimeDiff = Time.time - clientTime - smoothedRTT / 2.0f;
+            errorRate = Mathf.Abs(newTimeDiff - timeDiff);
+            timeDiff = newTimeDiff;
         }
         timePackets.Remove(tp);
+        packetsLossed += timePackets.RemoveAll(t => t.serverTime < Time.time - 1.0f);
         isReady = true;
+        if (DEBUG) Logs();
+    }
+
+    private void Logs()
+    {
+        Debug.Log("Packets Lossed: " + packetsLossed);
+        Debug.Log("Time sync error: " + errorRate);
     }
 }

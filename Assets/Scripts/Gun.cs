@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Gun : MonoBehaviour
@@ -65,26 +66,30 @@ public class Gun : MonoBehaviour
         }
     }
 
-    public void Shoot(Vector3 viewDirection, Transform shootOrigin, float time, float enemyTime, int playerId)
+    public void Shoot(Vector3 viewDirection, Transform shootOrigin, Player shooter, float time, float enemyDelay)
     {
         if (EquipReady()) //TODO: Add ShootReady & AmmoReady
         {
+            //Get server time
+            float delay = shooter.syncedTime.GetClientTime() - time;
+            shooter.DelayPosition(delay);
+
             // Set positions back in time
             foreach (Client c in Server.clients.Values)
             {
                 if (c.player == null) continue;
-                if (c.player.id == playerId)
+                if (c.player.id != shooter.id)
                 {
-                    c.player.SetPositionInTime(time);
-                }
-                else
-                {
-                    c.player.SetPositionInTime(enemyTime);
+                    c.player.DelayPosition(delay + enemyDelay);
+                    c.player.RewindAnimation(delay + enemyDelay);
                 }
             }
             // Do hit collision
             Debug.DrawRay(shootOrigin.position, viewDirection.normalized * 1000f, Color.cyan, 0.5f);
+
             RaycastHit[] hits = Physics.RaycastAll(shootOrigin.position, viewDirection, 1000f);
+            hits = hits.OrderBy(h => h.distance).ToArray();
+
             Dictionary<int, float> playerDamage = new Dictionary<int, float>();
             for (int i = 0; i < hits.Length; i++)
             {
@@ -97,7 +102,7 @@ public class Gun : MonoBehaviour
                 if (damage > 0.0f)
                 {
                     Player p = hits[i].collider.GetComponentInParent<Player>();
-                    if (p != null && p.id != playerId)
+                    if (p != null && p.id != shooter.id)
                     {
                         if (!playerDamage.ContainsKey(p.id))
                         {
@@ -113,7 +118,7 @@ public class Gun : MonoBehaviour
             foreach (Client c in Server.clients.Values)
             {
                 if (c.player == null) continue;
-                c.player.SetLatestPosition();
+                c.player.SetLatestTick();
             }
             // Handle damage and send hitmarker
             bool hitmarker = false;
@@ -121,14 +126,14 @@ public class Gun : MonoBehaviour
             {
                 if (Server.clients.ContainsKey(pd.Key))
                 {
-                    Debug.Log($"Player {playerId} hit player {pd.Key} for {pd.Value} damage.");
+                    Debug.Log($"Player {shooter.username} hit player {pd.Key} for {pd.Value} damage.");
                     Server.clients[pd.Key].player?.TakeDamage(pd.Value);
                     hitmarker = true;
                 }
             }
             if (hitmarker)
             {
-                ServerSend.PlayerHitmark(playerId);
+                ServerSend.PlayerHitmark(shooter.id);
             }
         }
     }
