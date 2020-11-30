@@ -39,7 +39,7 @@ public class Player : MonoBehaviour
 
     private void Start()
     {
-        Debug.Log(Time.fixedDeltaTime);
+        if (DEBUG) Debug.Log("Fixed Delta:" + Time.fixedDeltaTime);
     }
 
     public void UpdateSyncTime(int packetId, float clientTime)
@@ -60,9 +60,9 @@ public class Player : MonoBehaviour
     {
         for (float x = saveTime; x > 0.0f; x -= Time.fixedDeltaTime)
         {
-            processedUserInput.Add(new UserInput { inputs = new bool[5], time = syncedTime.GetClientTime() - x, rotation = Quaternion.identity });
-            unprocessedUserInput.Add(new UserInput { inputs = new bool[5], time = syncedTime.GetClientTime() - x, rotation = Quaternion.identity });
-            ticks.Add(new PlayerState { _position = spawnPosition, _rotation = Quaternion.identity, _time = syncedTime.GetClientTime() - x, _yVelocity = yVelocity });
+            processedUserInput.Add(new UserInput { Inputs = new bool[5], Time = syncedTime.GetClientTime() - x, Rotation = Quaternion.identity });
+            unprocessedUserInput.Add(new UserInput { Inputs = new bool[5], Time = syncedTime.GetClientTime() - x, Rotation = Quaternion.identity });
+            ticks.Add(new PlayerState { Position = spawnPosition, Rotation = Quaternion.identity, Time = syncedTime.GetClientTime() - x, YVelocity = yVelocity, AnimationTime = 0.0f });
         }
     }
 
@@ -77,7 +77,7 @@ public class Player : MonoBehaviour
         float currentTime = syncedTime.GetClientTime();
         //Clone multithreaded lists
         List<UserInput> tempUnprocessedUserInput = unprocessedUserInput.Clone();
-        tempUnprocessedUserInput.RemoveAll(u => u.time < ticks.First()._time || u.time < currentTime - saveTime);
+        tempUnprocessedUserInput.RemoveAll(u => u.Time < ticks.First().Time || u.Time < currentTime - saveTime);
         unprocessedUserInput = new ThreadSafeList<UserInput>(tempUnprocessedUserInput);
         List<UserInput> uInput = unprocessedUserInput.Clone();
         //Is Alive
@@ -87,36 +87,37 @@ public class Player : MonoBehaviour
             if (uInput.Count > 0)
             {
                 Vector2 _inputDirection = Vector2.zero;
-                uInput = uInput.OrderBy(x => x.time).ToList();
+                uInput = uInput.OrderBy(x => x.Time).ToList();
                 //Merge processed + unprocessed inputs
                 List<UserInput> allInputs = new List<UserInput>();
                 allInputs.AddRange(processedUserInput);
                 allInputs.AddRange(uInput);
 
                 //Reconcilate
-                if (uInput.First().time < ticks.Last()._time) 
+                if (uInput.First().Time < ticks.Last().Time) 
                 {
                     //Rewind ticks till oldest unprocessedUserInput
-                    ticks.RemoveAll(t => t._time > uInput.First().time);
+                    ticks.RemoveAll(t => t.Time > uInput.First().Time);
                     //Set last valid tick information
                     characterController.enabled = false;
-                    characterController.transform.position = ticks.Last()._position;
-                    characterController.transform.rotation = ticks.Last()._rotation;
-                    yVelocity = ticks.Last()._yVelocity;
+                    characterController.transform.position = ticks.Last().Position;
+                    characterController.transform.rotation = ticks.Last().Rotation;
+                    yVelocity = ticks.Last().YVelocity;
                     characterController.enabled = true;
                     characterController.Move(Vector3.zero); //Reset isGrounded
+                    if (ticks.Count > 2) animationController.RewindAnimation(ticks.Last().AnimationTime, ticks.Last().Position - ticks[ticks.Count - 2].Position, transform.forward);
 
                     float newTickTime;
                     do
                     {
-                        float lastTickTime = ticks.Last()._time;
+                        float lastTickTime = ticks.Last().Time;
                         newTickTime = lastTickTime + Time.fixedDeltaTime;
                         if (newTickTime > currentTime) { newTickTime = currentTime; }
-                        List<UserInput> movesThisTick = allInputs.Where(a => a.time > lastTickTime && a.time <= newTickTime).OrderBy(ui => ui.time).ToList();
-                        UserInput prevTickMove = allInputs.Where(a => a.time <= lastTickTime).OrderByDescending(x => x.time).FirstOrDefault();
+                        List<UserInput> movesThisTick = allInputs.Where(a => a.Time > lastTickTime && a.Time <= newTickTime).OrderBy(ui => ui.Time).ToList();
+                        UserInput prevTickMove = allInputs.Where(a => a.Time <= lastTickTime).OrderByDescending(x => x.Time).FirstOrDefault();
                         if (prevTickMove != default && prevTickMove != null)
                         {
-                            prevTickMove.time = ticks.Last()._time;
+                            prevTickMove.Time = ticks.Last().Time;
                             movesThisTick.Insert(0, prevTickMove);
                         }
                         if (movesThisTick.Count > 0)
@@ -127,46 +128,46 @@ public class Player : MonoBehaviour
                                 float moveTime;
                                 if (i == movesThisTick.Count - 1)
                                 {
-                                    moveTime = newTickTime - movesThisTick[i].time;
+                                    moveTime = newTickTime - movesThisTick[i].Time;
                                 }
                                 else
                                 {
-                                    moveTime = movesThisTick[i + 1].time - movesThisTick[i].time;
+                                    moveTime = movesThisTick[i + 1].Time - movesThisTick[i].Time;
                                 }
-                                Move(movesThisTick[i].inputs, movesThisTick[i].rotation, moveTime);
+                                Move(movesThisTick[i].Inputs, movesThisTick[i].Rotation, moveTime);
                             }
                         }
-                        ticks.Add(new PlayerState { _position = transform.position, _rotation = transform.rotation, _time = newTickTime, _yVelocity = yVelocity });
+                        ticks.Add(new PlayerState { Position = transform.position, Rotation = transform.rotation, Time = newTickTime, YVelocity = yVelocity, AnimationTime = animationController.GetNormalizedTime() });
                     } while (newTickTime != currentTime);
                 }
                 else
                 {
                     //Execute last ProcessedInput from last tick till first UnProcessedInput
-                    float moveTime = uInput.First().time - ticks.Last()._time;
-                    Move(processedUserInput.Last().inputs, processedUserInput.Last().rotation, moveTime);
+                    float moveTime = uInput.First().Time - ticks.Last().Time;
+                    Move(processedUserInput.Last().Inputs, processedUserInput.Last().Rotation, moveTime);
                     //Execute unprocessed Input
                     for (int i = 0; i < uInput.Count; i++)
                     {
                         if (i == uInput.Count - 1)
                         {
-                            moveTime = currentTime - uInput[i].time;
+                            moveTime = currentTime - uInput[i].Time;
                         }
                         else
                         {
-                            moveTime = uInput[i + 1].time - uInput[i].time;
+                            moveTime = uInput[i + 1].Time - uInput[i].Time;
                         }
-                        Move(uInput[i].inputs, uInput[i].rotation, moveTime);
+                        Move(uInput[i].Inputs, uInput[i].Rotation, moveTime);
                     }
                     //Add server tick
-                    ticks.Add(new PlayerState { _position = transform.position, _rotation = transform.rotation, _time = currentTime, _yVelocity = yVelocity });
+                    ticks.Add(new PlayerState { Position = transform.position, Rotation = transform.rotation, Time = currentTime, YVelocity = yVelocity, AnimationTime = animationController.GetNormalizedTime() });
                 }
             }
             //NO new unprocessed input
             //Execute last processed input & create server tick
             else
             {
-                Move(processedUserInput.Last().inputs, processedUserInput.Last().rotation, currentTime - ticks.Last()._time);
-                ticks.Add(new PlayerState { _position = transform.position, _rotation = transform.rotation, _time = currentTime, _yVelocity = yVelocity });
+                Move(processedUserInput.Last().Inputs, processedUserInput.Last().Rotation, currentTime - ticks.Last().Time);
+                ticks.Add(new PlayerState { Position = transform.position, Rotation = transform.rotation, Time = currentTime, YVelocity = yVelocity, AnimationTime = animationController.GetNormalizedTime() });
             }
         }
         //Is Dead
@@ -175,7 +176,7 @@ public class Player : MonoBehaviour
             yVelocity = 0;
             transform.position = spawnPosition;
             transform.rotation = Quaternion.identity;
-            ticks.Add(new PlayerState { _position = transform.position, _rotation = transform.rotation, _time = currentTime, _yVelocity = yVelocity });
+            ticks.Add(new PlayerState { Position = transform.position, Rotation = transform.rotation, Time = currentTime, YVelocity = yVelocity, AnimationTime = animationController.GetNormalizedTime() });
         }
 
         //move from unprocessed to processed
@@ -186,7 +187,7 @@ public class Player : MonoBehaviour
         }
         if (ticks.Count > saveTime / Time.fixedDeltaTime) ticks.RemoveAt(0);
         while (processedUserInput.Count > saveTime / Time.fixedDeltaTime) processedUserInput.RemoveAt(0);
-        processedUserInput = processedUserInput.OrderBy(pui => pui.time).ToList();
+        processedUserInput = processedUserInput.OrderBy(pui => pui.Time).ToList();
         //send new tick to all players
         ServerSend.PlayerPosition(id, ticks.Last());
 
@@ -208,10 +209,10 @@ public class Player : MonoBehaviour
     /// </summary>
     /// <param name="inputs"></param>
     /// <param name="rotation"></param>
-    /// <param name="moveDuration"></param>
-    private void Move(bool[] inputs, Quaternion rotation, float moveDuration)
+    /// <param name="delta"></param>
+    private void Move(bool[] inputs, Quaternion rotation, float delta)
     {
-        if (moveDuration <= 0.0f) return;
+        if (delta <= 0.0f) return;
 
         Vector2 _inputDirection = Vector2.zero;
         if (inputs[0])
@@ -248,15 +249,16 @@ public class Player : MonoBehaviour
 
         if (!characterController.isGrounded)
         {
-            yVelocity -= gravity * moveDuration;
+            yVelocity -= gravity * delta;
         }
 
-        characterController.Move(moveDirection * moveDuration);
+        characterController.Move(moveDirection * delta);
+        animationController.Move(new Vector3(_inputDirection.x, 0.0f, _inputDirection.y), transform.forward);
     }
 
     public void AddInput(bool[] _inputs, Quaternion _rotation, float _time)
     {
-        unprocessedUserInput.Add(new UserInput { inputs = _inputs, time = _time, rotation = _rotation });
+        unprocessedUserInput.Add(new UserInput { Inputs = _inputs, Time = _time, Rotation = _rotation });
     }
 
     /// <summary>
@@ -266,26 +268,47 @@ public class Player : MonoBehaviour
     public void DelayPosition(float delay)
     {
         float time = syncedTime.GetClientTime() - delay;
-        IEnumerable<PlayerState> t = ticks.Where(tick => tick._time < time);
+        IEnumerable<PlayerState> t = ticks.Where(tick => tick.Time < time);
         if (t.Count() == 0) return;
-        PlayerState previous = t.OrderBy(ti => ti._time).Last();
+        PlayerState previous = t.OrderBy(ti => ti.Time).Last();
         int prevIndex = ticks.IndexOf(previous);
-        if (prevIndex == ticks.Count - 1) return;
-        PlayerState next = ticks[prevIndex + 1];
-        transform.position = Vector3.Lerp(previous._position, next._position, (time - previous._time) / (next._time - previous._time));
+        Vector3 nextPos = transform.position;
+        float nextTime = Time.time;
+        if (prevIndex < ticks.Count - 1)
+        {
+            PlayerState next = ticks[prevIndex + 1];
+            nextPos = next.Position;
+            nextTime = next.Time;
+        }
+        transform.position = Vector3.Lerp(previous.Position, nextPos, (time - previous.Time) / (nextTime - previous.Time));
     }
 
     public void RewindAnimation(float delay)
     {
         float time = syncedTime.GetClientTime() - delay;
-        IEnumerable<PlayerState> t = ticks.Where(tick => tick._time < time);
+        IEnumerable<PlayerState> t = ticks.Where(tick => tick.Time < time);
         if (t.Count() == 0) return;
-        PlayerState previous = t.OrderBy(ti => ti._time).Last();
+        PlayerState previous = t.OrderBy(ti => ti.Time).Last();
         int prevIndex = ticks.IndexOf(previous);
-        if (prevIndex == ticks.Count - 1) return;
-        PlayerState next = ticks[prevIndex + 1];
-        float lerp = (time - previous._time) / (next._time - previous._time);
-        animationController.RewindAnimation(lerp, next._position - previous._position, next._rotation * Vector3.forward);
+        float nextTime = Time.time;
+        float nextAnimationTime = animationController.GetNormalizedTime();
+        Vector3 nextPosition = transform.position;
+        Quaternion nextRotation = transform.rotation;
+        if (prevIndex < ticks.Count - 1)
+        {
+            PlayerState next = ticks[prevIndex + 1];
+            nextTime = next.Time;
+            nextAnimationTime = next.AnimationTime;
+            nextPosition = next.Position;
+            nextRotation = next.Rotation;
+        }
+        
+        float lerp = (time - previous.Time) / (nextTime - previous.Time);
+        float prevAnimationTime = previous.AnimationTime;
+        if (prevAnimationTime > nextAnimationTime) prevAnimationTime = 0.0f;
+        float normalizedTime = Mathf.Lerp(prevAnimationTime, nextAnimationTime, lerp);
+        if (normalizedTime < 0.0f) normalizedTime += 1.0f;
+        animationController.RewindAnimation(normalizedTime, nextPosition - previous.Position, nextRotation * Vector3.forward);
     }
 
     /// <summary>
@@ -293,10 +316,10 @@ public class Player : MonoBehaviour
     /// </summary>
     public void SetLatestTick()
     {
-        transform.position = this.ticks.Last()._position;
-        transform.rotation = this.ticks.Last()._rotation;
-        yVelocity = this.ticks.Last()._yVelocity;
-        animationController.RestoreAnimation(this.ticks.Last()._position - this.ticks[this.ticks.Count - 2]._position, this.transform.forward);
+        transform.position = this.ticks.Last().Position;
+        transform.rotation = this.ticks.Last().Rotation;
+        yVelocity = this.ticks.Last().YVelocity;
+        animationController.RestoreAnimation(this.ticks.Last().Position - this.ticks[this.ticks.Count - 2].Position, this.transform.forward);
     }
 
     /// <summary>
@@ -318,7 +341,7 @@ public class Player : MonoBehaviour
     public void Shoot(Vector3 viewDirection, float time, float enemyInterpolationDelay)
     {
         if (health <= 0f) return;
-        gun.Shoot(viewDirection, shootOrigin, this, time, enemyInterpolationDelay);
+        gun.Shoot(viewDirection, this, time, enemyInterpolationDelay);
     }
 
     /// <summary>

@@ -102,10 +102,10 @@ public class ServerSend
         using (Packet packet = new Packet((int)ServerPackets.playerPosition))
         {
             packet.Write(id);
-            packet.Write(state._position);
-            packet.Write(state._rotation);
-            packet.Write(state._yVelocity);
-            packet.Write(state._time);
+            packet.Write(state.Position);
+            packet.Write(state.Rotation);
+            packet.Write(state.YVelocity);
+            packet.Write(state.Time);
 
             SendUDPDataToAll(packet);
         }
@@ -147,6 +147,18 @@ public class ServerSend
         using (Packet packet = new Packet((int)ServerPackets.playerHitmark))
         {
             packet.Write(toClient);
+            SendUDPData(toClient, packet);
+        }
+    }
+
+    public static void PlayerShot(int toClient, int clientThatShot, float time, Vector3 position, Vector3 forward)
+    {
+        using (Packet packet = new Packet((int)ServerPackets.playerShot))
+        {
+            packet.Write(clientThatShot);
+            packet.Write(time);
+            packet.Write(position);
+            packet.Write(forward);
             SendUDPData(toClient, packet);
         }
     }

@@ -1,41 +1,43 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class AnimationController : MonoBehaviour
 {
     public Animator animator;
 
-    private Vector3 prevPos = Vector3.zero;
-    private Vector3 movingDirection = Vector3.zero;
-
     private float tempNormalizedTime = 0f;
 
-    private void FixedUpdate()
+    private void Start()
     {
-        movingDirection = transform.position - prevPos;
-        prevPos = transform.position;
+        animator.updateMode = AnimatorUpdateMode.AnimatePhysics;
+    }
 
-        Vector2 animationDir = GetMovingDirection(movingDirection, this.transform.forward);
+    public void Move(Vector3 movementDirection, Vector3 camForward)
+    {
+        Vector2 animationDir = GetMovingDirection(movementDirection, camForward);
         animator.SetFloat("xVelocity", animationDir.x);
         animator.SetFloat("zVelocity", animationDir.y);
     }
 
-    public void RewindAnimation(float _lerp, Vector3 _movingDirection, Vector3 _forward)
+    public float GetNormalizedTime()
     {
-        tempNormalizedTime = animator.GetCurrentAnimatorStateInfo(0).normalizedTime;
+        return animator.GetCurrentAnimatorStateInfo(0).normalizedTime;
+    }
 
-        Vector2 animationDir = GetMovingDirection(_movingDirection, _forward);
+    public void RewindAnimation(float normalizedTime, Vector3 movementDirection, Vector3 camForward)
+    {
+        tempNormalizedTime = GetNormalizedTime();
+        Vector2 animationDir = GetMovingDirection(movementDirection, camForward);
+
         animator.SetFloat("xVelocity", animationDir.x);
         animator.SetFloat("zVelocity", animationDir.y);
         animator.Update(0f);
-        animator.Play(0, -1, _lerp);
+        animator.Play(0, -1, normalizedTime);
         animator.Update(0f);
     }
 
-    public void RestoreAnimation(Vector3 _movingDirection, Vector3 _forward)
+    public void RestoreAnimation(Vector3 movementDirection, Vector3 camForward)
     {
-        Vector2 animationDir = GetMovingDirection(_movingDirection, _forward);
+        Vector2 animationDir = GetMovingDirection(movementDirection, camForward);
         animator.SetFloat("xVelocity", animationDir.x);
         animator.SetFloat("zVelocity", animationDir.y);
         animator.Update(0f);
@@ -43,13 +45,19 @@ public class AnimationController : MonoBehaviour
         animator.Update(0f);
     }
 
-    private static Vector2 GetMovingDirection(Vector3 _movingDirection, Vector3 _forward)
+    /// <summary>
+    /// Get
+    /// </summary>
+    /// <param name="movementVelocity"></param>
+    /// <param name="_forward"></param>
+    /// <returns></returns>
+    private static Vector2 GetMovingDirection(Vector3 movementVelocity, Vector3 _forward)
     {
         Vector2 movDir = Vector3.zero;
 
-        if (_movingDirection == Vector3.zero || _movingDirection.magnitude < 0.00001f) return movDir;
+        if (movementVelocity == Vector3.zero || movementVelocity.magnitude < 0.00001f) return movDir;
 
-        float angle = CalculateAngle180(_forward, _movingDirection.normalized);
+        float angle = CalculateAngle180(_forward, movementVelocity.normalized);
         if (Mathf.Abs(angle) <= 50.0f)
         {
             movDir.y = 1.0f;

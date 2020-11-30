@@ -25,7 +25,7 @@ public class Gun : MonoBehaviour
             hipsDamage = 33.0f,
             legsDamage = 17.0f,
             equipCooldown = 1f,
-            shotCooldown = 0.8f
+            shotCooldown = 0.5f
         },
         //AK-47
         new GunEntity {
@@ -35,7 +35,7 @@ public class Gun : MonoBehaviour
             hipsDamage = 17.0f,
             legsDamage = 8.0f,
             equipCooldown = 2f,
-            shotCooldown = 0.33f
+            shotCooldown = 0.22f
         }
     };
 
@@ -66,13 +66,24 @@ public class Gun : MonoBehaviour
         }
     }
 
-    public void Shoot(Vector3 viewDirection, Transform shootOrigin, Player shooter, float time, float enemyDelay)
+    public void Shoot(Vector3 viewDirection, Player shooter, float time, float interpolationDelay)
     {
         if (EquipReady()) //TODO: Add ShootReady & AmmoReady
         {
             //Get server time
-            float delay = shooter.syncedTime.GetClientTime() - time;
-            shooter.DelayPosition(delay);
+            float packetDelay = shooter.syncedTime.GetClientTime() - time;
+            //Delay shooter position
+            shooter.DelayPosition(packetDelay);
+            shooter.RewindAnimation(packetDelay);
+            //Send shot to other players
+            foreach (Client c in Server.clients.Values)
+            {
+                Player p = c?.player;
+                if (p != null && p.id != shooter.id)
+                {
+                    ServerSend.PlayerShot(p.id, shooter.id, p.syncedTime.GetClientTime() - packetDelay, shooter.shootOrigin.position, viewDirection);
+                }
+            }
 
             // Set positions back in time
             foreach (Client c in Server.clients.Values)
@@ -80,14 +91,14 @@ public class Gun : MonoBehaviour
                 if (c.player == null) continue;
                 if (c.player.id != shooter.id)
                 {
-                    c.player.DelayPosition(delay + enemyDelay);
-                    c.player.RewindAnimation(delay + enemyDelay);
+                    c.player.DelayPosition(packetDelay + interpolationDelay);
+                    c.player.RewindAnimation(packetDelay + interpolationDelay);
                 }
             }
             // Do hit collision
-            Debug.DrawRay(shootOrigin.position, viewDirection.normalized * 1000f, Color.cyan, 0.5f);
+            Debug.DrawRay(shooter.shootOrigin.position, viewDirection.normalized * 1000f, Color.cyan, 0.5f);
 
-            RaycastHit[] hits = Physics.RaycastAll(shootOrigin.position, viewDirection, 1000f);
+            RaycastHit[] hits = Physics.RaycastAll(shooter.shootOrigin.position, viewDirection, 1000f);
             hits = hits.OrderBy(h => h.distance).ToArray();
 
             Dictionary<int, float> playerDamage = new Dictionary<int, float>();
