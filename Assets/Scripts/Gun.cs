@@ -19,23 +19,23 @@ public class Gun : MonoBehaviour
     private GunEntity[] gunModels = new GunEntity[] { 
         //Deagle
         new GunEntity { 
-            headDamage = 84.0f,
-            torsoDamage = 44.0f,
-            armsDamage = 18.0f,
-            hipsDamage = 33.0f,
-            legsDamage = 17.0f,
-            equipCooldown = 1f,
-            shotCooldown = 0.5f
+            headDamage = 99.0f,
+            torsoDamage = 52.0f,
+            armsDamage = 34.0f,
+            hipsDamage = 36.0f,
+            legsDamage = 26.0f,
+            equipCooldown = 0.75f,
+            shotCooldown = 0.6f
         },
         //AK-47
         new GunEntity {
-            headDamage = 45.0f,
+            headDamage = 48.0f,
             torsoDamage = 22.0f,
-            armsDamage = 9.0f,
-            hipsDamage = 17.0f,
-            legsDamage = 8.0f,
-            equipCooldown = 2f,
-            shotCooldown = 0.22f
+            armsDamage = 17.0f,
+            hipsDamage = 19.0f,
+            legsDamage = 14.0f,
+            equipCooldown = 2.5f,
+            shotCooldown = 0.2f
         }
     };
 
@@ -70,18 +70,16 @@ public class Gun : MonoBehaviour
     {
         if (EquipReady()) //TODO: Add ShootReady & AmmoReady
         {
-            //Get server time
             float packetDelay = shooter.syncedTime.GetClientTime() - time;
-            //Delay shooter position
             shooter.DelayPosition(packetDelay);
-            shooter.RewindAnimation(packetDelay);
+
             //Send shot to other players
             foreach (Client c in Server.clients.Values)
             {
                 Player p = c?.player;
                 if (p != null && p.id != shooter.id)
                 {
-                    ServerSend.PlayerShot(p.id, shooter.id, p.syncedTime.GetClientTime() - packetDelay, shooter.shootOrigin.position, viewDirection);
+                    ServerSend.PlayerShot(p.id, shooter.id, p.syncedTime.GetClientTime(), shooter.shootOrigin.position, viewDirection);
                 }
             }
 
@@ -91,8 +89,8 @@ public class Gun : MonoBehaviour
                 if (c.player == null) continue;
                 if (c.player.id != shooter.id)
                 {
-                    c.player.DelayPosition(packetDelay + interpolationDelay);
-                    c.player.RewindAnimation(packetDelay + interpolationDelay);
+                    c.player.DelayPosition(interpolationDelay + packetDelay);
+                    c.player.RewindAnimation(interpolationDelay + packetDelay);
                 }
             }
             // Do hit collision
@@ -133,15 +131,25 @@ public class Gun : MonoBehaviour
             }
             // Handle damage and send hitmarker
             bool hitmarker = false;
+            float damageDone = 0.0f;
+            int kills = 0;
             foreach (KeyValuePair<int, float> pd in playerDamage)
             {
                 if (Server.clients.ContainsKey(pd.Key))
                 {
-                    Debug.Log($"Player {shooter.username} hit player {pd.Key} for {pd.Value} damage.");
-                    Server.clients[pd.Key].player?.TakeDamage(pd.Value);
+                    //Debug.Log($"Player {shooter.username} hit player {pd.Key} for {pd.Value} damage.");
+                    if (Server.clients[pd.Key].player != null)
+                    {
+                        bool dead = Server.clients[pd.Key].player.TakeDamage(pd.Value, out float damageDealt);
+                        damageDone += damageDealt;
+                        if (dead) kills++;
+                    }
+                    
                     hitmarker = true;
                 }
             }
+            shooter.AddDamage(damageDone);
+            shooter.AddKills(kills);
             if (hitmarker)
             {
                 ServerSend.PlayerHitmark(shooter.id);

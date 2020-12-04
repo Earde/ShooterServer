@@ -9,7 +9,7 @@ public enum ServerPackets
     welcome = 1,
     timeSync,
     spawnPlayer,
-    playerPosition,
+    playerData,
     playerDisconnected,
     playerHealth,
     playerRespawn,

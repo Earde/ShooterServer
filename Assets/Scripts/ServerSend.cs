@@ -75,11 +75,12 @@ public class ServerSend
         }
     }
 
-    public static void TimeSync(int toClient, int packetId)
+    public static void TimeSync(int toClient, int packetId, float SRTT)
     {
         using (Packet packet = new Packet((int)ServerPackets.timeSync))
         {
             packet.Write(packetId);
+            packet.Write(SRTT);
             SendUDPData(toClient, packet);
         }
     }
@@ -97,15 +98,19 @@ public class ServerSend
         }
     }
 
-    public static void PlayerPosition(int id, PlayerState state)
+    public static void PlayerData(int id, PlayerState state, int damageDone, int kills, int deaths)
     {
-        using (Packet packet = new Packet((int)ServerPackets.playerPosition))
+        using (Packet packet = new Packet((int)ServerPackets.playerData))
         {
             packet.Write(id);
             packet.Write(state.Position);
             packet.Write(state.Rotation);
             packet.Write(state.YVelocity);
             packet.Write(state.Time);
+
+            packet.Write(damageDone);
+            packet.Write(kills);
+            packet.Write(deaths);
 
             SendUDPDataToAll(packet);
         }

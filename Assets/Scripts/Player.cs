@@ -19,7 +19,6 @@ public class Player : MonoBehaviour
     public int maxItemAmount = 3;
 
     public float respawnTime = 5f;
-    public Vector3 spawnPosition = new Vector3(20.5f, 2.5f, -1.8f);
 
     public GameObject colliders;
 
@@ -35,11 +34,25 @@ public class Player : MonoBehaviour
 
     public SyncedTime syncedTime;
 
+    private float damageDone = 0.0f;
+    private int kills = 0;
+    private int deaths = 0;
+
     private bool DEBUG = false;
 
     private void Start()
     {
         if (DEBUG) Debug.Log("Fixed Delta:" + Time.fixedDeltaTime);
+    }
+
+    public void AddDamage(float damage)
+    {
+        damageDone += damage;
+    }
+
+    public void AddKills(int _kills)
+    {
+        kills += _kills;
     }
 
     public void UpdateSyncTime(int packetId, float clientTime)
@@ -53,7 +66,14 @@ public class Player : MonoBehaviour
         username = _username;
         health = maxHealth;
         yVelocity = 0f;
-        transform.position = spawnPosition;
+        SetSpawnPosition();
+    }
+
+    private void SetSpawnPosition()
+    {
+        SpawnPoint sp = SpawnPoints.GetRandomSpawnPoint();
+        transform.position = sp.Position;
+        transform.rotation = sp.Rotation;
     }
 
     private void InitTicks()
@@ -62,7 +82,7 @@ public class Player : MonoBehaviour
         {
             processedUserInput.Add(new UserInput { Inputs = new bool[5], Time = syncedTime.GetClientTime() - x, Rotation = Quaternion.identity });
             unprocessedUserInput.Add(new UserInput { Inputs = new bool[5], Time = syncedTime.GetClientTime() - x, Rotation = Quaternion.identity });
-            ticks.Add(new PlayerState { Position = spawnPosition, Rotation = Quaternion.identity, Time = syncedTime.GetClientTime() - x, YVelocity = yVelocity, AnimationTime = 0.0f });
+            ticks.Add(new PlayerState { Position = transform.position, Rotation = transform.rotation, Time = syncedTime.GetClientTime() - x, YVelocity = yVelocity, AnimationTime = 0.0f });
         }
     }
 
@@ -174,8 +194,7 @@ public class Player : MonoBehaviour
         else
         {
             yVelocity = 0;
-            transform.position = spawnPosition;
-            transform.rotation = Quaternion.identity;
+            //SetSpawnPosition();
             ticks.Add(new PlayerState { Position = transform.position, Rotation = transform.rotation, Time = currentTime, YVelocity = yVelocity, AnimationTime = animationController.GetNormalizedTime() });
         }
 
@@ -189,7 +208,7 @@ public class Player : MonoBehaviour
         while (processedUserInput.Count > saveTime / Time.fixedDeltaTime) processedUserInput.RemoveAt(0);
         processedUserInput = processedUserInput.OrderBy(pui => pui.Time).ToList();
         //send new tick to all players
-        ServerSend.PlayerPosition(id, ticks.Last());
+        ServerSend.PlayerData(id, ticks.Last(), (int)damageDone, kills, deaths);
 
         if (DEBUG) Logs();
     }
@@ -231,10 +250,8 @@ public class Player : MonoBehaviour
         {
             _inputDirection.x += 1;
         }
-        if (_inputDirection.magnitude > 1.5f)
-        {
-            _inputDirection *= 0.7071f; //Keer wortel van 0.5 om _inputDirection.magnitude van 1 te krijgen
-        }
+
+        if (_inputDirection.magnitude > 1.0f) _inputDirection /= _inputDirection.magnitude;
 
         transform.rotation = rotation;
         Vector3 moveDirection = (transform.right * _inputDirection.x * moveSpeed) + (transform.forward * _inputDirection.y * moveSpeed);
@@ -247,10 +264,7 @@ public class Player : MonoBehaviour
 
         moveDirection.y = yVelocity;
 
-        if (!characterController.isGrounded)
-        {
-            yVelocity -= gravity * delta;
-        }
+        yVelocity -= gravity * delta;
 
         characterController.Move(moveDirection * delta);
         animationController.Move(new Vector3(_inputDirection.x, 0.0f, _inputDirection.y), transform.forward);
@@ -307,7 +321,6 @@ public class Player : MonoBehaviour
         float prevAnimationTime = previous.AnimationTime;
         if (prevAnimationTime > nextAnimationTime) prevAnimationTime = 0.0f;
         float normalizedTime = Mathf.Lerp(prevAnimationTime, nextAnimationTime, lerp);
-        if (normalizedTime < 0.0f) normalizedTime += 1.0f;
         animationController.RewindAnimation(normalizedTime, nextPosition - previous.Position, nextRotation * Vector3.forward);
     }
 
@@ -362,18 +375,30 @@ public class Player : MonoBehaviour
     /// Take hit
     /// </summary>
     /// <param name="damage"></param>
-    public void TakeDamage(float damage)
+    public bool TakeDamage(float damage, out float damageDealt)
     {
-        if (health <= 0f) return;
+        damageDealt = 0.0f;
+        if (health <= 0f) return true;
 
+        damageDealt = damage;
         health -= damage;
+        bool dead = false;
         if (health <= 0f) //Died
         {
+            dead = true;
+            damageDealt += health;
+            deaths++;
             Die();
             StartCoroutine(Respawn(respawnTime));
         }
 
         ServerSend.PlayerHealth(this);
+        return dead;
+    }
+
+    public bool IsDead()
+    {
+        return health <= 0f;
     }
 
     public void Die()
@@ -382,7 +407,7 @@ public class Player : MonoBehaviour
         characterController.enabled = false;
         yVelocity = 0;
         colliders.SetActive(false);
-        transform.position = spawnPosition;
+        SetSpawnPosition();
     }
 
     /// <summary>

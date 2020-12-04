@@ -34,7 +34,7 @@ public class SyncedTime : MonoBehaviour
     public void SendTimePacket(int playerId)
     {
         timePackets.Add(new TimePacket { id = packetId, serverTime = Time.time });
-        ServerSend.TimeSync(playerId, packetId);
+        ServerSend.TimeSync(playerId, packetId, smoothedRTT);
         packetId++;
     }
 

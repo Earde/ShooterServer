@@ -58,7 +58,7 @@ public class Projectile : MonoBehaviour
         {
             if (collider.CompareTag("Player"))
             {
-                collider.GetComponent<Player>().TakeDamage(explosionDamage);
+                bool dead = collider.GetComponent<Player>().TakeDamage(explosionDamage, out float damageDealt);
             }
         }
         projectiles.Remove(id);
