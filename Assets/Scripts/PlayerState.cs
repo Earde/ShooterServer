@@ -5,6 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
+/// <summary>
+/// Server state of player at client time
+/// </summary>
 public class PlayerState
 {
     public Vector3 Position { get; set; }

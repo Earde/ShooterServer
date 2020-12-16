@@ -26,11 +26,19 @@ public class SyncedTime : MonoBehaviour
 
     private bool DEBUG = false;
 
+    /// <summary>
+    /// Get client time
+    /// </summary>
+    /// <returns></returns>
     public float GetClientTime()
     {
         return Time.time - timeDiff;
     }
 
+    /// <summary>
+    /// Send TimeSync packet to server
+    /// </summary>
+    /// <param name="playerId"></param>
     public void SendTimePacket(int playerId)
     {
         timePackets.Add(new TimePacket { id = packetId, serverTime = Time.time });
@@ -38,6 +46,11 @@ public class SyncedTime : MonoBehaviour
         packetId++;
     }
 
+    /// <summary>
+    /// Process TimeSync packet from client
+    /// </summary>
+    /// <param name="packetId"></param>
+    /// <param name="clientTime"></param>
     public void UpdateTime(int packetId, float clientTime)
     {
         TimePacket tp = timePackets.FirstOrDefault(x => x.id == packetId);

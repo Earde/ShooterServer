@@ -20,6 +20,10 @@ public class ItemSpawner : MonoBehaviour
         StartCoroutine(SpawnItem());
     }
 
+    /// <summary>
+    /// Pick up item
+    /// </summary>
+    /// <param name="other"></param>
     private void OnTriggerEnter(Collider other)
     {
         if (hasItem && other.CompareTag("Player"))
@@ -27,11 +31,15 @@ public class ItemSpawner : MonoBehaviour
             Player player = other.GetComponent<Player>();
             if (player.AttemptPickupItem())
             {
-                ItemPickedUp(player.id);
+                ItemPickedUp(player.GetID());
             }
         }
     }
 
+    /// <summary>
+    /// Spawn item
+    /// </summary>
+    /// <returns></returns>
     private IEnumerator SpawnItem()
     {
         yield return new WaitForSeconds(10f);
@@ -39,6 +47,10 @@ public class ItemSpawner : MonoBehaviour
         ServerSend.ItemSpawned(spawnerId);
     }
 
+    /// <summary>
+    /// Send itemPickedUp to server
+    /// </summary>
+    /// <param name="byPlayer"></param>
     private void ItemPickedUp(int byPlayer)
     {
         hasItem = false;

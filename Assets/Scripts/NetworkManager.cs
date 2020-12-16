@@ -32,11 +32,20 @@ public class NetworkManager : MonoBehaviour
         Server.Stop();
     }
 
+    /// <summary>
+    /// Create player
+    /// </summary>
+    /// <returns></returns>
     public Player InstantiatePlayer()
     {
         return Instantiate(playerPrefab, new Vector3(0.0f, 0.5f, 0.0f), Quaternion.identity).GetComponent<Player>();
     }
 
+    /// <summary>
+    /// Create projectile
+    /// </summary>
+    /// <param name="shootOrigin"></param>
+    /// <returns></returns>
     public Projectile InstantiateProjectile(Transform shootOrigin)
     {
         return Instantiate(projectilePrefab, shootOrigin.position + shootOrigin.forward * 0.7f, Quaternion.identity).GetComponent<Projectile>();

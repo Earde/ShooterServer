@@ -89,8 +89,8 @@ public class ServerSend
     {
         using (Packet packet = new Packet((int)ServerPackets.spawnPlayer))
         {
-            packet.Write(player.id);
-            packet.Write(player.username);
+            packet.Write(player.GetID());
+            packet.Write(player.GetUsername());
             packet.Write(player.transform.position);
             packet.Write(player.transform.rotation);
 
@@ -130,8 +130,8 @@ public class ServerSend
     {
         using (Packet packet = new Packet((int)ServerPackets.playerHealth))
         {
-            packet.Write(player.id);
-            packet.Write(player.health);
+            packet.Write(player.GetID());
+            packet.Write(player.GetHealth());
 
             SendTCPDataToAll(packet);
         }
@@ -141,7 +141,7 @@ public class ServerSend
     {
         using (Packet packet = new Packet((int)ServerPackets.playerRespawn))
         {
-            packet.Write(player.id);
+            packet.Write(player.GetID());
 
             SendTCPDataToAll(packet);
         }

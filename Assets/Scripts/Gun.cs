@@ -1,21 +1,11 @@
-﻿using System.Collections;
+﻿using Assets.Scripts;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 public class Gun : MonoBehaviour
 {
-    class GunEntity
-    {
-        public float headDamage { get; set; }
-        public float torsoDamage { get; set; }
-        public float hipsDamage { get; set; }
-        public float armsDamage { get; set; }
-        public float legsDamage { get; set; }
-        public float equipCooldown { get; set; }
-        public float shotCooldown { get; set; }
-    }
-
     private GunEntity[] gunModels = new GunEntity[] { 
         //Deagle
         new GunEntity { 
@@ -57,6 +47,12 @@ public class Gun : MonoBehaviour
         equipTimer += Time.deltaTime;
     }
 
+    /// <summary>
+    /// Set active gun at time
+    /// </summary>
+    /// <param name="gunId"></param>
+    /// <param name="time"></param>
+    /// <param name="serverTime"></param>
     public void SetGun(int gunId, float time, float serverTime)
     {
         if (activeGun != gunId)
@@ -66,6 +62,14 @@ public class Gun : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Player shoot in viewDirection at time
+    /// interpolationDelay for enemy rewind
+    /// </summary>
+    /// <param name="viewDirection"></param>
+    /// <param name="shooter"></param>
+    /// <param name="time"></param>
+    /// <param name="interpolationDelay"></param>
     public void Shoot(Vector3 viewDirection, Player shooter, float time, float interpolationDelay)
     {
         if (EquipReady()) //TODO: Add ShootReady & AmmoReady
@@ -77,9 +81,9 @@ public class Gun : MonoBehaviour
             foreach (Client c in Server.clients.Values)
             {
                 Player p = c?.player;
-                if (p != null && p.id != shooter.id)
+                if (p != null && p.GetID() != shooter.GetID())
                 {
-                    ServerSend.PlayerShot(p.id, shooter.id, p.syncedTime.GetClientTime(), shooter.shootOrigin.position, viewDirection);
+                    ServerSend.PlayerShot(p.GetID(), shooter.GetID(), p.syncedTime.GetClientTime(), shooter.shootOrigin.position, viewDirection);
                 }
             }
 
@@ -87,7 +91,7 @@ public class Gun : MonoBehaviour
             foreach (Client c in Server.clients.Values)
             {
                 if (c.player == null) continue;
-                if (c.player.id != shooter.id)
+                if (c.player.GetID() != shooter.GetID())
                 {
                     c.player.DelayPosition(interpolationDelay + packetDelay);
                     c.player.RewindAnimation(interpolationDelay + packetDelay);
@@ -111,14 +115,14 @@ public class Gun : MonoBehaviour
                 if (damage > 0.0f)
                 {
                     Player p = hits[i].collider.GetComponentInParent<Player>();
-                    if (p != null && p.id != shooter.id)
+                    if (p != null && p.GetID() != shooter.GetID())
                     {
-                        if (!playerDamage.ContainsKey(p.id))
+                        if (!playerDamage.ContainsKey(p.GetID()))
                         {
-                            playerDamage.Add(p.id, damage);
-                        } else if (damage > playerDamage[p.id])
+                            playerDamage.Add(p.GetID(), damage);
+                        } else if (damage > playerDamage[p.GetID()])
                         {
-                            playerDamage[p.id] = damage;
+                            playerDamage[p.GetID()] = damage;
                         }
                     }
                 }
@@ -152,7 +156,7 @@ public class Gun : MonoBehaviour
             shooter.AddKills(kills);
             if (hitmarker)
             {
-                ServerSend.PlayerHitmark(shooter.id);
+                ServerSend.PlayerHitmark(shooter.GetID());
             }
         }
     }

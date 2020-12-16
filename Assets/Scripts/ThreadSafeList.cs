@@ -4,6 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+/// <summary>
+/// Thread safe list
+/// </summary>
+/// <typeparam name="T"></typeparam>
 [Serializable()]
 internal class ThreadSafeList<T> : IList<T>
 {

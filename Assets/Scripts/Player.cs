@@ -2,57 +2,79 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Assets.Scripts;
 
 public class Player : MonoBehaviour
 {
-    public int id;
-    public string username;
+    [Header("Setup")]
+    public bool DEBUG = false;
     public CharacterController characterController;
-    public Transform shootOrigin;
+    public AnimationController animationController;
+    public GameObject colliders;
+
+    private string username;
+    private int id;
+
+    [Header("Movement")]
     public float gravity = -9.81f;
     public float moveSpeed = 5f;
     public float jumpSpeed = 5f;
-    public float throwForce = 600f;
-    public float health;
+
+    private float yVelocity;
+
+    [Header("Health")]
     public float maxHealth = 100.0f;
+    public float respawnTime = 5f;
+
+    private float health;
+
+    [Header("Projectile")]
+    public float throwForce = 600f;
     public int itemAmount = 0;
     public int maxItemAmount = 3;
 
-    public float respawnTime = 5f;
-
-    public GameObject colliders;
-
+    [Header("Gun")]
     public Gun gun;
+    public Transform shootOrigin;
 
-    public AnimationController animationController;
+    [Header("Time Sync")]
+    public SyncedTime syncedTime;
 
+    //Score
+    private Score score = new Score();
+    // Input/ticks history
     private float saveTime = 1f; //time in seconds after inputs and ticks will be discarded
     private ThreadSafeList<UserInput> unprocessedUserInput = new ThreadSafeList<UserInput>(new List<UserInput>());
     private List<UserInput> processedUserInput = new List<UserInput>();
     private List<PlayerState> ticks = new List<PlayerState>();
-    private float yVelocity;
-
-    public SyncedTime syncedTime;
-
-    private float damageDone = 0.0f;
-    private int kills = 0;
-    private int deaths = 0;
-
-    private bool DEBUG = false;
 
     private void Start()
     {
         if (DEBUG) Debug.Log("Fixed Delta:" + Time.fixedDeltaTime);
     }
 
+    public int GetID()
+    {
+        return id;
+    }
+    public float GetHealth()
+    {
+        return health;
+    }
+
+    public string GetUsername()
+    {
+        return username;
+    }
+
     public void AddDamage(float damage)
     {
-        damageDone += damage;
+        score.damageDone += damage;
     }
 
     public void AddKills(int _kills)
     {
-        kills += _kills;
+        score.kills += _kills;
     }
 
     public void UpdateSyncTime(int packetId, float clientTime)
@@ -60,6 +82,11 @@ public class Player : MonoBehaviour
         syncedTime.UpdateTime(packetId, clientTime);
     }
 
+    /// <summary>
+    /// Set id, username and spawn position
+    /// </summary>
+    /// <param name="_id"></param>
+    /// <param name="_username"></param>
     public void Initialize(int _id, string _username)
     {
         id = _id;
@@ -69,6 +96,9 @@ public class Player : MonoBehaviour
         SetSpawnPosition();
     }
 
+    /// <summary>
+    /// Set new random spawn position
+    /// </summary>
     private void SetSpawnPosition()
     {
         SpawnPoint sp = SpawnPoints.GetRandomSpawnPoint();
@@ -76,7 +106,10 @@ public class Player : MonoBehaviour
         transform.rotation = sp.Rotation;
     }
 
-    private void InitTicks()
+    /// <summary>
+    /// Initialize input/ticks
+    /// </summary>
+    private void InitInputAndTicks()
     {
         for (float x = saveTime; x > 0.0f; x -= Time.fixedDeltaTime)
         {
@@ -92,7 +125,7 @@ public class Player : MonoBehaviour
         syncedTime.SendTimePacket(id);
         if (!syncedTime.isReady) return;
         //Initialize ticks
-        if (ticks.Count == 0) InitTicks();
+        if (ticks.Count == 0) InitInputAndTicks();
         //Get client time
         float currentTime = syncedTime.GetClientTime();
         //Clone multithreaded lists
@@ -113,7 +146,8 @@ public class Player : MonoBehaviour
                 allInputs.AddRange(processedUserInput);
                 allInputs.AddRange(uInput);
 
-                //Reconcilate
+                //Server Reconciliation
+                //Create new ticks
                 if (uInput.First().Time < ticks.Last().Time) 
                 {
                     //Rewind ticks till oldest unprocessedUserInput
@@ -160,6 +194,7 @@ public class Player : MonoBehaviour
                         ticks.Add(new PlayerState { Position = transform.position, Rotation = transform.rotation, Time = newTickTime, YVelocity = yVelocity, AnimationTime = animationController.GetNormalizedTime() });
                     } while (newTickTime != currentTime);
                 }
+                //Create new tick
                 else
                 {
                     //Execute last ProcessedInput from last tick till first UnProcessedInput
@@ -178,12 +213,12 @@ public class Player : MonoBehaviour
                         }
                         Move(uInput[i].Inputs, uInput[i].Rotation, moveTime);
                     }
-                    //Add server tick
                     ticks.Add(new PlayerState { Position = transform.position, Rotation = transform.rotation, Time = currentTime, YVelocity = yVelocity, AnimationTime = animationController.GetNormalizedTime() });
                 }
             }
-            //NO new unprocessed input
-            //Execute last processed input & create server tick
+            //No new unprocessed input
+            //Execute last processed input 
+            //Create server tick
             else
             {
                 Move(processedUserInput.Last().Inputs, processedUserInput.Last().Rotation, currentTime - ticks.Last().Time);
@@ -194,7 +229,6 @@ public class Player : MonoBehaviour
         else
         {
             yVelocity = 0;
-            //SetSpawnPosition();
             ticks.Add(new PlayerState { Position = transform.position, Rotation = transform.rotation, Time = currentTime, YVelocity = yVelocity, AnimationTime = animationController.GetNormalizedTime() });
         }
 
@@ -204,13 +238,14 @@ public class Player : MonoBehaviour
             unprocessedUserInput.Remove(u);
             processedUserInput.Add(u);
         }
+        //remove old input/ticks
         if (ticks.Count > saveTime / Time.fixedDeltaTime) ticks.RemoveAt(0);
         while (processedUserInput.Count > saveTime / Time.fixedDeltaTime) processedUserInput.RemoveAt(0);
         processedUserInput = processedUserInput.OrderBy(pui => pui.Time).ToList();
         //send new tick to all players
-        ServerSend.PlayerData(id, ticks.Last(), (int)damageDone, kills, deaths);
+        ServerSend.PlayerData(id, ticks.Last(), (int)score.damageDone, score.kills, score.deaths);
 
-        if (DEBUG) Logs();
+        Logs();
     }
 
     /// <summary>
@@ -218,6 +253,7 @@ public class Player : MonoBehaviour
     /// </summary>
     private void Logs()
     {
+        if (!DEBUG) return;
         Debug.Log("pInput Count: " + processedUserInput.Count);
         Debug.Log("uInput Count: " + unprocessedUserInput.Count);
         Debug.Log("ticks Count: " + ticks.Count);
@@ -270,9 +306,15 @@ public class Player : MonoBehaviour
         animationController.Move(new Vector3(_inputDirection.x, 0.0f, _inputDirection.y), transform.forward);
     }
 
-    public void AddInput(bool[] _inputs, Quaternion _rotation, float _time)
+    /// <summary>
+    /// Add input & rotation at _time to unprocessedInput list
+    /// </summary>
+    /// <param name="_inputs"></param>
+    /// <param name="_rotation"></param>
+    /// <param name="_time"></param>
+    public void AddInput(bool[] inputs, Quaternion rotation, float time)
     {
-        unprocessedUserInput.Add(new UserInput { Inputs = _inputs, Time = _time, Rotation = _rotation });
+        unprocessedUserInput.Add(new UserInput { Inputs = inputs, Time = time, Rotation = rotation });
     }
 
     /// <summary>
@@ -297,6 +339,10 @@ public class Player : MonoBehaviour
         transform.position = Vector3.Lerp(previous.Position, nextPos, (time - previous.Time) / (nextTime - previous.Time));
     }
 
+    /// <summary>
+    /// Rewind animation with x delay
+    /// </summary>
+    /// <param name="delay"></param>
     public void RewindAnimation(float delay)
     {
         float time = syncedTime.GetClientTime() - delay;
@@ -387,7 +433,7 @@ public class Player : MonoBehaviour
         {
             dead = true;
             damageDealt += health;
-            deaths++;
+            score.deaths++;
             Die();
             StartCoroutine(Respawn(respawnTime));
         }
@@ -401,6 +447,10 @@ public class Player : MonoBehaviour
         return health <= 0f;
     }
 
+    /// <summary>
+    /// Disable colliders & characterController
+    /// Set new spawn position
+    /// </summary>
     public void Die()
     {
         health = 0f;
